@@ -29,7 +29,7 @@ jobs:
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           FEISHU_WEBHOOK_URL: ${{ secrets.FEISHU_WEBHOOK_URL }}
-          STOCK_LIST: ${{ github.event.inputs.stock_code || secrets.STOCK_LIST }}
+          STOCK_LIST: ${{ secrets.STOCK_LIST }}
         run: |
           python main.py --force-run 2>&1 > /tmp/gemini_report.txt || echo "Gemini failed" > /tmp/gemini_report.txt
           echo "===== Gemini Analysis =====" > /tmp/dual_report.txt
