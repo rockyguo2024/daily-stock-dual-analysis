@@ -29,18 +29,18 @@ jobs:
           STOCK_LIST: ${{ github.event.inputs.stock_code }}
         run: |
           echo "===== Gemini Analysis =====" > /tmp/dual_report.txt
-          python main.py 2>&1 | tee -a /tmp/dual_report.txt || echo "Gemini failed" >> /tmp/dual_report.txt          
+          python main.py --force-run 2>&1 | tee -a /tmp/dual_report.txt || echo "Gemini failed" >> /tmp/dual_report.txt                    
       
       # DeepSeek 分析
       - name: Analyze with DeepSeek
         env:
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          OPENAI_BASE_URL: ${{ secrets.OPENAI_BASE_URL }}
+          DEEPSEEK_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          DEEPSEEK_BASE_URL: ${{ secrets.OPENAI_BASE_URL }}
           STOCK_LIST: ${{ github.event.inputs.stock_code }}
         run: |
           echo "" >> /tmp/dual_report.txt
           echo "===== DeepSeek Analysis =====" >> /tmp/dual_report.txt
-          python main.py 2>&1 | tee -a /tmp/dual_report.txt || echo "DeepSeek failed" >> /tmp/dual_report.txt          
+          python main.py --force-run 2>&1 | tee -a /tmp/dual_report.txt || echo "DeepSeek failed" >> /tmp/dual_report.txt                    
       
       - name: Upload Report
         uses: actions/upload-artifact@v4
