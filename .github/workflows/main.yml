@@ -1,6 +1,11 @@
 name: Daily Stock Dual Analysis
 
 on:
+  # 定时触发：每天北京时间18:30（UTC 10:30）
+  schedule:
+    - cron: '30 10 * * *'
+  
+  # 手动触发
   workflow_dispatch:
     inputs:
       stock_code:
@@ -26,21 +31,32 @@ jobs:
       - name: Analyze with Gemini
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          STOCK_LIST: ${{ github.event.inputs.stock_code }}
+          FEISHU_WEBHOOK_URL: ${{ secrets.FEISHU_WEBHOOK_URL }}
+          STOCK_LIST: ${{ github.event.inputs.stock_code || secrets.STOCK_LIST }}
         run: |
-          echo "===== Gemini Analysis =====" > /tmp/dual_report.txt
-          python main.py --force-run 2>&1 | tee -a /tmp/dual_report.txt || echo "Gemini failed" >> /tmp/dual_report.txt                    
+          python main.py --force-run 2>&1 | tee -a /tmp/dual_report.txt || echo "Gemini failed" >> /tmp/dual_report.txt                              
       
       # DeepSeek 分析
       - name: Analyze with DeepSeek
         env:
           DEEPSEEK_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           DEEPSEEK_BASE_URL: ${{ secrets.OPENAI_BASE_URL }}
-          STOCK_LIST: ${{ github.event.inputs.stock_code }}
+          FEISHU_WEBHOOK_URL: ${{ secrets.FEISHU_WEBHOOK_URL }}
+          STOCK_LIST: ${{ github.event.inputs.stock_code || secrets.STOCK_LIST }}
         run: |
-          echo "" >> /tmp/dual_report.txt
-          echo "===== DeepSeek Analysis =====" >> /tmp/dual_report.txt
-          python main.py --force-run 2>&1 | tee -a /tmp/dual_report.txt || echo "DeepSeek failed" >> /tmp/dual_report.txt                    
+          python main.py --force-run 2>&1 | tee -a /tmp/dual_report.txt || echo "DeepSeek failed" >> /tmp/dual_report.txt                              
+      
+      # 飞书推送
+      - name: Send to Feishu
+        run: |
+          curl -X POST "${{ secrets.FEISHU_WEBHOOK_URL }}" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"msg_type\": \"text\",
+              \"content\": {
+                \"text\": \"$(cat /tmp/dual_report.txt | sed 's/\"/\\\\\"/g' | sed ':a;N;$!ba;s/\\n/\\\\n/g')\"
+              }
+            }" || echo "飞书推送失败"          
       
       - name: Upload Report
         uses: actions/upload-artifact@v4
