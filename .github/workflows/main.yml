@@ -21,8 +21,29 @@ jobs:
         with:
           python-version: '3.10'
       - run: pip install -r requirements.txt
-      - run: python dual_model_analysis.py ${{ github.event.inputs.stock_code }} "${{ github.event.inputs.stock_name }}"
+      
+      # Gemini 分析
+      - name: Analyze with Gemini
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          STOCK_LIST: ${{ github.event.inputs.stock_code }}
+        run: |
+          echo "===== Gemini Analysis =====" > /tmp/dual_report.txt
+          python main.py 2>&1 | tee -a /tmp/dual_report.txt || echo "Gemini failed" >> /tmp/dual_report.txt          
+      
+      # DeepSeek 分析
+      - name: Analyze with DeepSeek
+        env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           OPENAI_BASE_URL: ${{ secrets.OPENAI_BASE_URL }}
+          STOCK_LIST: ${{ github.event.inputs.stock_code }}
+        run: |
+          echo "" >> /tmp/dual_report.txt
+          echo "===== DeepSeek Analysis =====" >> /tmp/dual_report.txt
+          python main.py 2>&1 | tee -a /tmp/dual_report.txt || echo "DeepSeek failed" >> /tmp/dual_report.txt          
+      
+      - name: Upload Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: dual-analysis-report
+          path: /tmp/dual_report.txt
