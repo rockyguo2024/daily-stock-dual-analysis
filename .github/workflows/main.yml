@@ -1,11 +1,8 @@
 name: Daily Stock Dual Analysis
 
 on:
-  # 定时触发：每天北京时间18:30（UTC 10:30）
   schedule:
     - cron: '30 10 * * *'
-  
-  # 手动触发
   workflow_dispatch:
     inputs:
       stock_code:
@@ -34,7 +31,9 @@ jobs:
           FEISHU_WEBHOOK_URL: ${{ secrets.FEISHU_WEBHOOK_URL }}
           STOCK_LIST: ${{ github.event.inputs.stock_code || secrets.STOCK_LIST }}
         run: |
-          python main.py --force-run 2>&1 | tee -a /tmp/dual_report.txt || echo "Gemini failed" >> /tmp/dual_report.txt                              
+          python main.py --force-run 2>&1 > /tmp/gemini_report.txt || echo "Gemini failed" > /tmp/gemini_report.txt
+          echo "===== Gemini Analysis =====" > /tmp/dual_report.txt
+          tail -100 /tmp/gemini_report.txt >> /tmp/dual_report.txt
       
       # DeepSeek 分析
       - name: Analyze with DeepSeek
@@ -44,19 +43,19 @@ jobs:
           FEISHU_WEBHOOK_URL: ${{ secrets.FEISHU_WEBHOOK_URL }}
           STOCK_LIST: ${{ github.event.inputs.stock_code || secrets.STOCK_LIST }}
         run: |
-          python main.py --force-run 2>&1 | tee -a /tmp/dual_report.txt || echo "DeepSeek failed" >> /tmp/dual_report.txt                              
+          python main.py --force-run 2>&1 > /tmp/deepseek_report.txt || echo "DeepSeek failed" > /tmp/deepseek_report.txt
+          echo "" >> /tmp/dual_report.txt
+          echo "===== DeepSeek Analysis =====" >> /tmp/dual_report.txt
+          tail -100 /tmp/deepseek_report.txt >> /tmp/dual_report.txt
       
-      # 飞书推送
+      # 飞书推送 - 修复参数过长问题
       - name: Send to Feishu
         run: |
+          REPORT_CONTENT=$(cat /tmp/dual_report.txt | head -500 | sed 's/\"/\\\\\"/g' | sed ':a;N;$!ba;s/\n/\\\\n/g')
           curl -X POST "${{ secrets.FEISHU_WEBHOOK_URL }}" \
             -H "Content-Type: application/json" \
-            -d "{
-              \"msg_type\": \"text\",
-              \"content\": {
-                \"text\": \"$(cat /tmp/dual_report.txt | sed 's/\"/\\\\\"/g' | sed ':a;N;$!ba;s/\\n/\\\\n/g')\"
-              }
-            }" || echo "飞书推送失败"          
+            -d "{\"msg_type\": \"text\", \"content\": {\"text\": \"${REPORT_CONTENT}\"}}" \
+            || echo "飞书推送失败"
       
       - name: Upload Report
         uses: actions/upload-artifact@v4
